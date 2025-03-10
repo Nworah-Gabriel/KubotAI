@@ -41,7 +41,10 @@ async def ensure_bot_initialized():
 async def start(update: Update, context: CallbackContext):
     logger.info("✅ /start command received")
     if update.message:
-        await update.message.reply_text("Hello! I am Kubot AI, a revolutionary gamified AI reward system. \n Click /mine to earn ten tokens after 10 seconds! 🚀")
+        await update.message.reply_text(
+            "Hello! I am Kubot AI, a revolutionary gamified AI reward system. \n"
+            "Click /mine to earn ten tokens after 10 seconds! 🚀"
+        )
     else:
         logger.error("⚠️ No message object in update!")
 
@@ -69,6 +72,7 @@ async def mine(update: Update, context: CallbackContext):
 
         # Start mining session
         mining_sessions[user_id] = datetime.now()
+        logger.info(f"⛏️ {first_name} started mining at {mining_sessions[user_id]}")
         await update.message.reply_text(
             f"⛏️ {first_name}, your mining session has started! You will mine for 10 seconds. "
             f"I will notify you when it's time to claim your rewards."
@@ -82,17 +86,21 @@ async def mine(update: Update, context: CallbackContext):
 
 async def end_mining_session(user_id: int, first_name: str, chat_id: int):
     """End the mining session after 10 seconds and notify the user."""
+    logger.info(f"⏳ Waiting for 10 seconds to end mining session for {first_name}...")
     await asyncio.sleep(10)  # Wait for 10 seconds (for testing)
 
     if user_id in mining_sessions:
         # Calculate rewards (example: 10 tokens)
         rewards = 10
+        logger.info(f"✅ Mining session ended for {first_name}. Sending rewards...")
         await app.bot.send_message(
             chat_id=chat_id,
             text=f"⛏️ {first_name}, your mining session has ended! You have earned {rewards} tokens. "
                  f"Use /mine to start mining again."
         )
         del mining_sessions[user_id]  # Remove the session
+    else:
+        logger.error(f"❌ No mining session found for user {user_id} ({first_name})")
 
 
 # ✅ Handler for text messages (echo)
