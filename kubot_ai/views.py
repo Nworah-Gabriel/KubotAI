@@ -57,6 +57,10 @@ async def start(update: Update, context: CallbackContext):
             )
         except NetworkError as e:
             logger.error(f"🌐 Network error while sending start message: {e}")
+            await update.message.reply_text(
+                "Hello! I am Kubot AI, a revolutionary gamified AI reward system.\n"
+                "Click /mine to earn fifty Kubot tokens after 60 seconds! 🚀"
+            )
         except Exception as e:
             logger.error(f"❌ Unexpected error: {e}")
             
@@ -102,6 +106,9 @@ async def mine(update: Update, context: CallbackContext):
                 f"⛏️ {first_name}, your mining session has begun! You'll be mining for 60 seconds. ⏳"
             )
         except NetworkError as e:
+            await update.message.reply_text(
+                f"⛏️ {first_name}, your mining session has begun! You'll be mining for 60 seconds. ⏳"
+            )
             # logger.error(f"🌐 Network error while sending mining start message: {e}")
             await finish_mining(user_id, first_name, update)
         except Exception as e:
