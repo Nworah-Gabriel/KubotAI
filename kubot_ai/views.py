@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.views import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from telegram.error import NetworkError
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
@@ -25,26 +26,40 @@ app = Application.builder().token(TOKEN).build()
 # Dictionary to track mining sessions
 mining_sessions = {}
 
+# Dictionary to store user rewards
+user_rewards = {}
+
 
 async def ensure_bot_initialized():
     """Ensure the bot is properly initialized before processing updates."""
-    if not app.running:
-        logger.info("🚀 Initializing bot...")
-        await app.initialize()
-        await app.start()
-        logger.info("✅ Bot initialized and started.")
-    else:
-        logger.info("✅ Bot is already initialized.")
+    try:
+        if not app.running:
+            logger.info("🚀 Initializing bot...")
+            await app.initialize()
+            await app.start()
+            logger.info("✅ Bot initialized and started.")
+        else:
+            logger.info("✅ Bot is already initialized.")
+    except NetworkError as e:
+        logger.error(f"🌐 Network error while initializing bot: {e}")
+    except Exception as e:
+        logger.error(f"❌ Unexpected error during bot initialization: {e}")
 
 
 # ✅ Handler for /start command
 async def start(update: Update, context: CallbackContext):
     logger.info("✅ /start command received")
     if update.message:
-        await update.message.reply_text(
-            "Hello! I am Kubot AI, a revolutionary gamified AI reward system. \n"
-            "Click /mine to earn ten tokens after 10 seconds! 🚀"
-        )
+        try:
+            await update.message.reply_text(
+                "Hello! I am Kubot AI, a revolutionary gamified AI reward system.\n"
+                "Click /mine to earn fifty Kubot tokens after 60 seconds! 🚀"
+            )
+        except NetworkError as e:
+            logger.error(f"🌐 Network error while sending start message: {e}")
+        except Exception as e:
+            logger.error(f"❌ Unexpected error: {e}")
+            
     else:
         logger.error("⚠️ No message object in update!")
 
@@ -53,61 +68,81 @@ async def start(update: Update, context: CallbackContext):
 async def stop(update: Update, context: CallbackContext):
     logger.info("✅ /stop command received")
     if update.message:
-        await update.message.reply_text("Always remember that Kubot AI is here to assist you. Have a great day!")
+        try:
+            await update.message.reply_text("Always remember that Kubot AI is here to assist you. Have a great day!")
+        except NetworkError as e:
+            logger.error(f"🌐 Network error while sending stop message: {e}")
+            await update.message.reply_text("Always remember that Kubot AI is here to assist you. Have a great day!")
+        except Exception as e:
+            logger.error(f"❌ Unexpected error: {e}")
     else:
         logger.error("⚠️ No message object in update!")
 
 
 # ✅ Handler for /mine command
 async def mine(update: Update, context: CallbackContext):
-    logger.info("✅ /mine command received")
     if update.message:
         user_id = update.message.from_user.id
         first_name = update.message.from_user.first_name
 
-        # Check if the user is already mining
         if user_id in mining_sessions:
-            await update.message.reply_text(f"{first_name}, you are already mining! Please wait until your current session ends.")
+            try:
+                await update.message.reply_text(
+                    f"{first_name}, you are already mining! Please wait until your current session ends."
+                )
+            except NetworkError as e:
+                logger.error(f"🌐 Network error while sending mining warning: {e}")
+            except Exception as e:
+                logger.error(f"❌ Unexpected error: {e}")
             return
 
-        # Start mining session
         mining_sessions[user_id] = datetime.now()
-        logger.info(f"⛏️ {first_name} started mining at {mining_sessions[user_id]}")
+        try:
+            await update.message.reply_text(
+                f"⛏️ {first_name}, your mining session has begun! You'll be mining for 60 seconds. ⏳"
+            )
+        except NetworkError as e:
+            # logger.error(f"🌐 Network error while sending mining start message: {e}")
+            await finish_mining(user_id, first_name, update)
+        except Exception as e:
+            logger.error(f"❌ Unexpected error: {e}")
+
+        # Start mining process
+        asyncio.create_task(finish_mining(user_id, first_name, update))
+
+
+async def finish_mining(user_id, first_name, update: Update):
+    """Handles mining completion after 60 seconds"""
+    print("let's get started")
+    await asyncio.sleep(10)
+    new_reward = 50
+    total_reward = user_rewards.get(user_id, 0) + new_reward
+    user_rewards[user_id] = total_reward
+
+    try:
         await update.message.reply_text(
-            f"⛏️ {first_name}, your mining session has started! You will mine for 10 seconds. "
-            f"I will notify you when it's time to claim your rewards."
+            f"⛏️ {first_name}, your mining session has ended! You have earned {new_reward} tokens.\n"
+            f"💰 Your total balance is now {total_reward} tokens."
         )
+    except NetworkError as e:
+        logger.error(f"🌐 Network error while sending mining result: {e}")
+        await asyncio.sleep(5)  # Retry after delay
+    except Exception as e:
+        logger.error(f"❌ Unexpected error sending mining result: {e}")
 
-        # Schedule the end of the mining session (10 seconds for testing)
-        asyncio.create_task(end_mining_session(user_id, first_name, update.message.chat_id))
-    else:
-        logger.error("⚠️ No message object in update!")
-
-
-async def end_mining_session(user_id: int, first_name: str, chat_id: int):
-    """End the mining session after 10 seconds and notify the user."""
-    logger.info(f"⏳ Waiting for 10 seconds to end mining session for {first_name}...")
-    await asyncio.sleep(10)  # Wait for 10 seconds (for testing)
-
-    if user_id in mining_sessions:
-        # Calculate rewards (example: 10 tokens)
-        rewards = 10
-        logger.info(f"✅ Mining session ended for {first_name}. Sending rewards...")
-        await app.bot.send_message(
-            chat_id=chat_id,
-            text=f"⛏️ {first_name}, your mining session has ended! You have earned {rewards} tokens. "
-                 f"Use /mine to start mining again."
-        )
-        del mining_sessions[user_id]  # Remove the session
-    else:
-        logger.error(f"❌ No mining session found for user {user_id} ({first_name})")
+    mining_sessions.pop(user_id, None)
 
 
 # ✅ Handler for text messages (echo)
 async def echo(update: Update, context: CallbackContext):
     logger.info(f"✅ Received message: {update.message.text}")
     if update.message:
-        await update.message.reply_text(update.message.text)
+        try:
+            await update.message.reply_text(update.message.text)
+        except NetworkError as e:
+            logger.error(f"🌐 Network error while echoing message: {e}")
+        except Exception as e:
+            logger.error(f"❌ Unexpected error: {e}")
     else:
         logger.error("⚠️ No message object in update!")
 
@@ -141,9 +176,15 @@ class TelegramWebhookView(View):
             await app.process_update(update)
 
             return JsonResponse({"status": "ok"}, status=200)
+
+        except NetworkError as e:
+            logger.error(f"🌐 Network error while processing update: {e}")
+            return JsonResponse({"error": "Network error, please try again later"}, status=503)
+
         except json.JSONDecodeError as e:
             logger.error(f"❌ JSON decode error: {e}")
             return JsonResponse({"error": "Invalid JSON"}, status=400)
+
         except Exception as e:
             logger.error(f"❌ Unexpected error: {e}")
             return JsonResponse({"error": "Internal Server Error"}, status=500)

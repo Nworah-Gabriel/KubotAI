@@ -27,6 +27,8 @@ SECRET_KEY = 'django-insecure-r*@$!72zc9z72y(!z60bsia+2+u0i8+0uzfl3b=_li)57boe81
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+ASYNC_MODE = True
+
 
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
