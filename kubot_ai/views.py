@@ -8,6 +8,7 @@ from django.views import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from telegram.error import NetworkError
+from asyncio import TimeoutError
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
@@ -55,7 +56,7 @@ async def start(update: Update, context: CallbackContext):
                 "Hello! I am Kubot AI, a revolutionary gamified AI reward system.\n"
                 "Click /mine to earn fifty Kubot tokens after 60 seconds! 🚀"
             )
-        except NetworkError as e:
+        except (NetworkError, TimeoutError) as e:
             logger.error(f"🌐 Network error while sending start message: {e}")
             await update.message.reply_text(
                 "Hello! I am Kubot AI, a revolutionary gamified AI reward system.\n"
@@ -72,10 +73,13 @@ async def start(update: Update, context: CallbackContext):
 async def stop(update: Update, context: CallbackContext):
     logger.info("✅ /stop command received")
     if update.message:
+        user_id = update.message.from_user.id
         try:
+            mining_sessions.pop(user_id, None)
             await update.message.reply_text("Always remember that Kubot AI is here to assist you. Have a great day!")
-        except NetworkError as e:
+        except (NetworkError, TimeoutError) as e:
             logger.error(f"🌐 Network error while sending stop message: {e}")
+            mining_sessions.pop(user_id, None)
             await update.message.reply_text("Always remember that Kubot AI is here to assist you. Have a great day!")
         except Exception as e:
             logger.error(f"❌ Unexpected error: {e}")
@@ -94,8 +98,9 @@ async def mine(update: Update, context: CallbackContext):
                 await update.message.reply_text(
                     f"{first_name}, you are already mining! Please wait until your current session ends."
                 )
-            except NetworkError as e:
+            except (NetworkError, TimeoutError) as e:
                 logger.error(f"🌐 Network error while sending mining warning: {e}")
+                await mine(update, context)
             except Exception as e:
                 logger.error(f"❌ Unexpected error: {e}")
             return
@@ -105,7 +110,9 @@ async def mine(update: Update, context: CallbackContext):
             await update.message.reply_text(
                 f"⛏️ {first_name}, your mining session has begun! You'll be mining for 60 seconds. ⏳"
             )
-        except NetworkError as e:
+            # Start mining process
+            asyncio.create_task(finish_mining(user_id, first_name, update))
+        except (NetworkError, TimeoutError) as e:
             await update.message.reply_text(
                 f"⛏️ {first_name}, your mining session has begun! You'll be mining for 60 seconds. ⏳"
             )
@@ -114,8 +121,7 @@ async def mine(update: Update, context: CallbackContext):
         except Exception as e:
             logger.error(f"❌ Unexpected error: {e}")
 
-        # Start mining process
-        asyncio.create_task(finish_mining(user_id, first_name, update))
+        
 
 
 async def finish_mining(user_id, first_name, update: Update):
@@ -128,16 +134,50 @@ async def finish_mining(user_id, first_name, update: Update):
 
     try:
         await update.message.reply_text(
-            f"⛏️ {first_name}, your mining session has ended! You have earned {new_reward} tokens.\n"
-            f"💰 Your total balance is now {total_reward} tokens."
+            f"{first_name}, your mining session has ended! You have earned {new_reward} tokens.\n"
+            f"💰 Your total balance is now {total_reward} tokens.\n"
+            f"Click on the /mine button continue mining ⛏️"
         )
-    except NetworkError as e:
+    except (NetworkError, TimeoutError) as e:
         logger.error(f"🌐 Network error while sending mining result: {e}")
-        await asyncio.sleep(5)  # Retry after delay
+        await finish_mining(user_id, first_name, update)
     except Exception as e:
         logger.error(f"❌ Unexpected error sending mining result: {e}")
 
     mining_sessions.pop(user_id, None)
+    
+    
+async def check_balance(update: Update, context: CallbackContext):
+    """Checks the balance of a user"""
+    if update.message:
+        user_id = update.message.from_user.id
+        first_name = update.message.from_user.first_name
+        
+        try:
+            reward = user_rewards[user_id]
+        except KeyError:
+            await update.message.reply_text(
+                f"{first_name},\n\n"
+                f"💰 Your have 0 Kubot tokens currently.\n"
+                f"Click on the /mine button start mining ⛏️"
+            )
+
+        try:
+            await update.message.reply_text(
+                f"{first_name},\n\n"
+                f"💰 Your total balance is now {reward} tokens.\n"
+                f"Click on the /mine button continue mining ⛏️"
+            )
+        except (NetworkError, TimeoutError) as e:
+            logger.error(f"🌐 Network error while sending mining result: {e}")
+            await update.message.reply_text(
+                f"{first_name},\n\n"
+                f"💰 Your total balance is now {reward} tokens.\n"
+                f"Click on the /mine button continue mining ⛏️"
+            )
+        except Exception as e:
+            logger.error(f"❌ Unexpected error checking balance: {e}")
+
 
 
 # ✅ Handler for text messages (echo)
@@ -146,7 +186,7 @@ async def echo(update: Update, context: CallbackContext):
     if update.message:
         try:
             await update.message.reply_text(update.message.text)
-        except NetworkError as e:
+        except (NetworkError, TimeoutError) as e:
             logger.error(f"🌐 Network error while echoing message: {e}")
         except Exception as e:
             logger.error(f"❌ Unexpected error: {e}")
@@ -158,6 +198,7 @@ async def echo(update: Update, context: CallbackContext):
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("stop", stop))
 app.add_handler(CommandHandler("mine", mine))
+app.add_handler(CommandHandler("balance", check_balance))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
 
@@ -184,7 +225,7 @@ class TelegramWebhookView(View):
 
             return JsonResponse({"status": "ok"}, status=200)
 
-        except NetworkError as e:
+        except (NetworkError, TimeoutError) as e:
             logger.error(f"🌐 Network error while processing update: {e}")
             return JsonResponse({"error": "Network error, please try again later"}, status=503)
 
