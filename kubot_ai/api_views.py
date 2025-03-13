@@ -8,25 +8,77 @@ from .serializers import WalletCreateSerializer, TaskSerializer, UserTaskSeriali
 
 # ✅ List and Create Tasks
 class TaskListCreateView(generics.ListCreateAPIView):
+    """
+    API endpoint to list all tasks and create new tasks.
+
+    GET: Retrieve a list of all available tasks.
+    POST: Create a new task.
+
+    Permissions:
+    - Allows any user.
+    """
+    
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     permission_classes = [AllowAny]
     
 
 # ✅ Complete a Task
-class CompleteTaskView(generics.ListCreateAPIView):
-    serializer_class = UserTaskSerializer
+
+# ✅ Complete a Task
+class GetCompleteTaskView(APIView):
+    """
+    API endpoint for getting completed tasks for user.
+
+    GET: Retrieve completed tasks based on `user_id` (query parameter).
+
+    Permissions:
+    - Allows any user.
+    """
+    
+   
     permission_classes = [AllowAny]
 
-    def get_queryset(self):
+    def get(self, request, user_id):
         """Retrieve completed tasks based on user_id from query parameters."""
-        user_id = self.request.query_params.get("user_id")  # Extract user_id from URL params
-        if user_id:
-            return UserTask.objects.filter(user_id=user_id)
-        return UserTask.objects.all()  # Returns all completed tasks if no user_id is provided
+        
+        try:
+            data = UserTask.objects.filter(user_id=user_id)
+            serializer = UserTaskSerializer(data, many=True)
+            if user_id:
+                return Response({
+                        "message": "User completed task fetched successfully",
+                        "data": serializer.data,
+                    })
+        except Error as e:    
+            return Response({
+                        "message": f"Error: {e}",
+                        "data": None
+                    })
+    
+class CompleteTaskView(APIView):
+    """
+    API endpoint for users to complete tasks.
 
-    def create(self, request, *args, **kwargs):
+    POST: Complete a task with `user_id` and `task_id` in the URL.
+
+    Validations:
+    - Ensures task exists.
+    - Prevents duplicate task completion.
+    - Grants reward upon completion.
+
+    Permissions:
+    - Allows any user.
+    """
+    
+    serializer_class = UserTaskSerializer
+    permission_classes = [AllowAny]
+    
+   
+
+    def post(self, request, *args, kwargs):
         """Handles task completion based on user_id and task_id in the URL."""
+        
         user_id = self.kwargs.get("user_id")
         task_id = self.kwargs.get("task_id")  
 
@@ -41,10 +93,12 @@ class CompleteTaskView(generics.ListCreateAPIView):
 
         # Save task completion
         try:
-            user_task = UserTask.objects.create(user_id=user_id, task=task)
-
+            user_task = UserTask.objects.create(user_id=user_id, task=task, reward_claimed=True)
+            user_task.save()
             # Add reward
             reward = Reward.objects.create(user_id=user_id, task=task, amount=task.reward_amount)
+            print(reward)
+            reward.save()
             return Response({
             "message": f"Task '{task.title}' completed! You earned {task.reward_amount} tokens.",
             "task": UserTaskSerializer(user_task).data,
@@ -59,13 +113,29 @@ class CompleteTaskView(generics.ListCreateAPIView):
 
         
         
-# View Rewards
-class RewardListView(generics.ListAPIView):
-    serializer_class = RewardSerializer
+# ✅ View Rewards
+class RewardListView(APIView):
+    """
+    API endpoint to retrieve a user's reward list.
+
+    GET: Fetch all rewards associated with the provided `username`.
+
+    Permissions:
+    - Allows any user.
+    """
+    
     permission_classes = [AllowAny]
 
-    def get_queryset(self):
-        return Reward.objects.filter(user=self.request.user)
+    def get(self, request, username):
+        """Retrieve rewards based on the username."""
+        
+        reward = Reward.objects.filter(user__user=username)
+        serializer = RewardSerializer(reward, many=True)
+        return Response(
+            {
+                "data": serializer.data
+            }
+        )
 #    {
 # "user":"brendan2",
 # "eth_address":"0x2d122fEF1613e82C0C90f443b59E54468e16525C",
@@ -75,10 +145,27 @@ class RewardListView(generics.ListAPIView):
 
 
 # ✅ 
-class ReferralView(APIView):
-    permission_classes = [AllowAny]  # Open API
+class ReferralRegisterView(APIView):
+    """
+    API endpoint to manage user referrals.
+
+    GET: Retrieve all referrals associated with a `referral_id`.
+    POST: Register a new referral using `referral_id`.
+
+    Validations:
+    - Ensures referred user exists.
+    - Prevents duplicate referrals.
+    - Grants a reward for successful referrals.
+
+    Permissions:
+    - Allows any user.
+    """
+    
+    permission_classes = [AllowAny]
 
     def get(self, request, referral_id):
+        """Retrieve all referrals for a given referral_id."""
+        
         referrals = Referral.objects.filter(referral_id=referral_id)
         serializer = ReferralSerializer(referrals, many=True)
         
@@ -89,6 +176,8 @@ class ReferralView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
     def post(self, request, referral_id):
+        """Register a referral and grant a reward."""
+
         referred_user_id = referral_id  # Taken from the URL parameter
         serializer = WalletCreateSerializer(data=request.data)
 
@@ -125,8 +214,6 @@ class ReferralView(APIView):
             new_referral.referral_id=referral_id
             new_referral.save()
 
-
-
             # Update balance
             referred_user.balance += 5
             referred_user.save()
@@ -141,14 +228,84 @@ class ReferralView(APIView):
                 "success": False,
                 "message": f"An unexpected error occurred: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
 
+# ✅ Create new user
+class RegisterView(APIView):
+    """
+    API endpoint for user registration and fetching wallet information.
+
+    Methods:
+        get(request):
+            Retrieve all wallet records from the database.
+
+        post(request):
+            Create a new wallet for a user.
+    """
+    
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """
+        Retrieve a list of all wallet records.
+        """
+        
+        new_wallet = Wallet.objects.all()
+        serializer = WalletCreateSerializer(new_wallet, many=True)
+        
+        return Response({
+                "success": False,
+                "message": "User Referrals fetched",
+                "data": serializer.data
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+    def post(self, request):
+        serializer = WalletCreateSerializer(data=request.data)
+
+        # Validate serializer first
+        if not serializer.is_valid():
+            return Response({
+                "success": False,
+                "message": "Invalid data provided.",
+                "errors": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+        
+        try:
+            # Save serializer data
+            new_wallet=serializer.save()
+            
+            return Response({
+                "success": True,
+                "message": "User created successfully"
+            }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({
+                "success": False,
+                "message": f"An unexpected error occurred: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+            
 # ✅ View Wallet Balance
 class WalletDetailView(APIView):
+    """
+    API endpoint to retrieve wallet balance.
+
+    GET: Fetch wallet balance for a given `username`.
+
+    Permissions:
+    - Allows any user.
+    """
+    
     serializer_class = WalletSerializer
     permission_classes = [AllowAny]
     
 
     def get(self, request, username):
+        """Retrieve the wallet balance for a user."""
+        
         try:
             user = Wallet.objects.get(user=username)
             serializer = WalletSerializer(user)
@@ -163,21 +320,63 @@ class WalletDetailView(APIView):
             })
 
 
-# ❗Withdraw Tokens (Placeholder for Blockchain Integration)
-class WithdrawTokensView(generics.GenericAPIView):
+# ✅ Withdraw Tokens
+class WithdrawTokensView(APIView):
+    """
+    API endpoint to withdraw tokens from a user's wallet.
+
+    POST: Withdraw a specified `amount` of tokens for a `username`.
+
+    Validations:
+    - Ensures sufficient balance before withdrawal.
+
+    Permissions:
+    - Allows any user.
+    """
+    
     permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):
-        wallet = Wallet.objects.get(user=request.user)
+    def post(self, request, username):
+        """Withdraw a specified amount of tokens from a wallet."""
+        
+        wallet = Wallet.objects.get(user=username)
         amount = float(request.data.get("amount"))
 
         if amount > wallet.balance:
             return Response({"error": "Insufficient balance."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Placeholder for Ethereum smart contract call
-        # blockchain_transfer(wallet.eth_address, amount)
-
         wallet.balance -= amount
         wallet.save()
+        
 
-        return Response({"message": f"{amount} tokens withdrawn to your Ethereum wallet."})
+        return Response({"message": f"{amount} tokens withdrawn to your account."})
+    
+    
+# ✅ fund Tokens
+class FundTokensView(APIView):
+    """
+    API endpoint to add funds (tokens) to a user's balance.
+
+    POST: Fund a specified `amount` of tokens to a `username`.
+
+    Permissions:
+    - Allows any user.
+    """
+    
+    permission_classes = [AllowAny]
+
+    def post(self, request, username):
+        """Fund a wallet with a specified amount of tokens."""
+        
+        wallet = Wallet.objects.get(user=username)
+        amount = float(request.data.get("amount"))
+            
+        try:
+            wallet.balance += amount
+            wallet.save()
+        except Error as e:
+            return Response({"error": f"{e}"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        
+
+        return Response({"message": f"{amount} tokens funded to your account."})

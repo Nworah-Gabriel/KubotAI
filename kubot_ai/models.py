@@ -6,16 +6,10 @@ import string
 
 # ✅ Task model
 class Task(models.Model):
-    TASK_TYPES = [
-        ('social_media', 'Social Media'),
-        ('community', 'Community Engagement'),
-        ('partner', 'Partner Activities'),
-        ('ethereum', 'Ethereum-Based Tasks'),
-    ]
 
     title = models.CharField(max_length=255)
     description = models.TextField()
-    task_type = models.CharField(max_length=20, choices=TASK_TYPES)
+    task_type = models.CharField(max_length=50)
     reward_amount = models.IntegerField(default=0)  # Reward in native tokens
     partner_project = models.CharField(max_length=255, blank=True, null=True)  # Optional
 
@@ -30,6 +24,8 @@ class UserTask(models.Model):
     completed_at = models.DateTimeField(auto_now_add=True)
     reward_claimed = models.BooleanField(default=False)
 
+    def __str__(self):
+        return f"{self.user.user} - {self.task}"
 
 # ✅ Reward model to store mining/task rewards
 class Reward(models.Model):
@@ -39,7 +35,7 @@ class Reward(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.amount} tokens"
+        return f"{self.user.user} - {self.amount} tokens"
 
 
 # ✅ Referral model

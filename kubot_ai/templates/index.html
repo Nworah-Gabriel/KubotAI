@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubot AI - API Documentation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            {% comment %} margin: 40px; {% endcomment %}
+            padding: 10px;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            align-self: center;
+        }
+        .container {
+            max-width: 1200px;
+            
+            margin: 5px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .endpoint {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #e6f7ff;
+            border-left: 4px solidrgb(255, 230, 0);
+        }
+        .method {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .code {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 style="text-align:center; margin-buttom:15px">🌟Kubot AI API Documentation🌟</h1>
+    <p style="color: rgb(51, 51, 51)">Welcome to the Kubot AI API, a gamified mini app on Telegram, designed to engage users through cryptocurrency mining, task-based rewards, and partner project collaborations. Use this guide to interact with the endpoints.
+        It integrates blockchain technology to ensure secure and transparent reward distribution while offering an intuitive and engaging user experience.
+    </p>
+
+    <!-- ✅ List and Create Tasks -->
+    <div class="endpoint">
+        <h2>📌 List & Create Tasks</h2>
+        <p><span class="method">GET /api/tasks/</span> - Retrieve all tasks.</p>
+        <p><span class="method">POST /api/tasks/</span> - Create a new task.</p>
+        <div class="code">
+            Example Request (POST):<br>
+            {% comment %} {<br>
+            &nbsp;&nbsp;"title": "Complete Profile",<br>
+            &nbsp;&nbsp;"description": "Complete your profile to earn rewards."<br>
+            } {% endcomment %}
+            {<br>
+                &nbsp;&nbsp;"id": 1,<br>
+                &nbsp;&nbsp;"title": "Follow our X handle",<br>
+                &nbsp;&nbsp;"description": "follow this handle and get a 5 tokens",<br>
+                &nbsp;&nbsp;"task_type": "social_media",<br>
+                &nbsp;&nbsp;"reward_amount": 5,<br>
+                &nbsp;&nbsp;"partner_project": ""<br>
+            }
+        </div>
+    </div>
+
+    <!-- ✅ Complete a Task -->
+    <div class="endpoint">
+        <h2>📌 Complete a Task</h2>
+        <p><span class="method">POST /api/complete-task/{user_id}/{task_id}/</span> - Mark a task as completed.</p>
+        <div class="code">
+            Example Response:<br>
+            {<br>
+            &nbsp;&nbsp;"message": "Task 'Profile Setup' completed! You earned 10 tokens.",<br>
+            &nbsp;&nbsp;"reward": 10<br>
+            }
+        </div>
+    </div>
+
+     <!-- ✅ Complete a Task -->
+     <div class="endpoint">
+        <h2>📌 User's Completed Task</h2>
+        <p><span class="method">GET /api/complete-task/?user_id=1</span> - List completed tasks for a user.</p>
+        <div class="code">
+            Example Response:<br>
+            {<br>
+            &nbsp;&nbsp;"message": "Task 'Profile Setup' completed! You earned 10 tokens.",<br>
+            &nbsp;&nbsp;"reward": 10<br>
+            }
+            {<br>
+                &nbsp;&nbsp;"message": "User completed task fetched successfully",<br>
+                &nbsp;&nbsp;"data": [<br>
+                &nbsp;&nbsp;{<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 4,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"completed_at": "2025-03-13T09:22:04.375227Z",<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"reward_claimed": true,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"user": 2,<br>
+                    &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;"task": 1<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;},<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;{<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 5,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"completed_at": "2025-03-13T12:11:14.605744Z",<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"reward_claimed": false,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"user": 2,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"task": 1<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                        &nbsp;&nbsp;]<br>
+            }
+        </div>
+    </div>
+
+    <!-- ✅ View Rewards -->
+    <div class="endpoint">
+        <h2>📌 View Rewards</h2>
+        <p><span class="method">GET /api/rewards/{username}/</span> - Retrieve rewards for a user.</p>
+        <div class="code">
+            Example response:<br>
+            {<br>
+                &nbsp;&nbsp;"data": [<br>
+                &nbsp;&nbsp;{<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"id": 3,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"amount": 5,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"created_at": "2025-03-13T09:22:04.386580Z",<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"user": 2,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"task": 1<br>
+                    &nbsp;&nbsp;}<br>
+                    &nbsp;&nbsp;]<br>
+            }<br>
+        </div>
+    </div>
+
+    <!-- ✅ Referral System -->
+    <div class="endpoint">
+        <h2>📌 Referral System</h2>
+        <p><span class="method">GET /api/referral/{referral_id}/</span> - Retrieve all referrals under a referral ID.</p>
+        <p><span class="method">POST /api/referral/{referral_id}/</span> - Register a new referral.</p>
+        <div class="code">
+            Example Request (POST):<br>
+            {<br>
+            &nbsp;&nbsp;"user": "john_doe",<br>
+            &nbsp;&nbsp;"eth_address": "0x2d122fEF1613e82C0C90f443b59E54468e16525C",<br>
+            &nbsp;&nbsp;"balance": 0.0<br>
+            }
+        </div>
+    </div>
+
+    <!-- ✅ User Registration -->
+    <div class="endpoint">
+        <h2>📌 User Registration</h2>
+        <p><span class="method">GET /api/register/</span> - Get all registered users.</p>
+        <p><span class="method">POST /api/register/</span> - Register a new user.</p>
+        <div class="code">
+            Example Request (POST):<br>
+            {<br>
+            &nbsp;&nbsp;"user": "jane_doe",<br>
+            &nbsp;&nbsp;"eth_address": "0x2d122fEF1613e82C0C90f443b59E54468e16525C"<br>
+            &nbsp;&nbsp;"balance": 0.0<br>
+            }
+        </div>
+    </div>
+
+    <!-- ✅ Wallet Balance -->
+    <div class="endpoint">
+        <h2>📌 User Details</h2>
+        <p><span class="method">GET /api/wallet/{username}/</span> - Fetch user details.</p>
+        <div class="code">
+            Example response:<br>
+            {<br>
+                &nbsp;&nbsp;"message": "success",<br>
+                &nbsp;&nbsp;"data": [<br>
+                &nbsp;&nbsp;{<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"id": 2,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"eth_address": "0x2d122fEF1613e82C0C90f443b59E54468e16525C",<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"balance": 90.0,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"referral_id": "K7A130",<br>
+                    &nbsp;&nbsp;}<br>
+                    &nbsp;&nbsp;]<br>
+            }<br>
+        </div>
+    </div>
+
+    <!-- ✅ Withdraw Tokens -->
+    <div class="endpoint">
+        <h2>📌 Withdraw Tokens</h2>
+        <p><span class="method">POST /api/withdraw/{username}/</span> - Withdraw tokens.</p>
+        <div class="code">
+            Example Request (POST):<br>
+            {<br>
+            &nbsp;&nbsp;"amount": 20.0<br>
+            }
+        </div>
+    </div>
+
+    <!-- ✅ Fund Tokens -->
+    <div class="endpoint">
+        <h2>📌 Fund Tokens</h2>
+        <p><span class="method">POST /api/fund/{username}/</span> - Add tokens to a wallet.</p>
+        <div class="code">
+            Example Request (POST):<br>
+            {<br>
+            &nbsp;&nbsp;"amount": 50.0<br>
+            }
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

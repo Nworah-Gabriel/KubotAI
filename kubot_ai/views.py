@@ -5,6 +5,7 @@ import asyncio
 from datetime import datetime
 from django.http import JsonResponse
 from django.views import View
+from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from telegram.error import NetworkError
@@ -236,3 +237,7 @@ class TelegramWebhookView(View):
         except Exception as e:
             logger.error(f"❌ Unexpected error: {e}")
             return JsonResponse({"error": "Internal Server Error"}, status=500)
+
+
+def index_view(request):
+    return render(request, "index.html")

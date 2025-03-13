@@ -16,8 +16,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from kubot_ai.views import index_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('kubot_ai.urls')),
+    path('', index_view),
+    path('api', include('kubot_ai.urls')),
 ]
