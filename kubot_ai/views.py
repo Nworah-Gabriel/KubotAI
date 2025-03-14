@@ -10,8 +10,9 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from telegram.error import NetworkError
 from asyncio import TimeoutError
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, InputFile
+
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, Updater
 
 # Load bot token from environment variable
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -51,24 +52,34 @@ async def ensure_bot_initialized():
 # ✅ Handler for /start command
 async def start(update: Update, context: CallbackContext):
     logger.info("✅ /start command received")
+    
+    WEB_BOT_URL = "https://kubotai.vercel.app/"
+    IMAGE_PATH = "kubot_ai/static/kubot.png"  # Path to local image
+
     if update.message:
+        # ✅ Create Inline Button (Attached to the message)
+        keyboard = [[InlineKeyboardButton("🚀 Open Mini App", web_app=WebAppInfo(url=WEB_BOT_URL))]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         try:
-            await update.message.reply_text(
-                "Hello! I am Kubot AI, a revolutionary gamified AI reward system.\n"
-                "Click /mine to earn fifty Kubot tokens after 60 seconds! 🚀"
-            )
-        except (NetworkError, TimeoutError) as e:
-            logger.error(f"🌐 Network error while sending start message: {e}")
-            await update.message.reply_text(
-                "Hello! I am Kubot AI, a revolutionary gamified AI reward system.\n"
-                "Click /mine to earn fifty Kubot tokens after 60 seconds! 🚀"
-            )
+            # ✅ Send Image with Caption & Inline Button
+            if os.path.exists(IMAGE_PATH):  # Check if image exists
+                with open(IMAGE_PATH, "rb") as photo:
+                    await update.message.reply_photo(
+                        photo=photo,
+                        caption="🌟 Welcome to Kubot AI! 🌟\nKubotAI combines crypto currency gamification with task - based rewards",
+                        reply_markup=reply_markup  # ✅ Attach Button to Message
+                    )
+            else:
+                await update.message.reply_text("⚠️ An error occurred. Please try again later.")
+
         except Exception as e:
-            logger.error(f"❌ Unexpected error: {e}")
-            
+            logger.error(f"❌ Error: {e}")
+            await update.message.reply_text("⚠️ An error occurred. Please try again later.")
+
     else:
         logger.error("⚠️ No message object in update!")
-
+        
 
 # ✅ Handler for /stop command
 async def stop(update: Update, context: CallbackContext):
