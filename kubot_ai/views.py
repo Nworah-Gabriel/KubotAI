@@ -75,7 +75,14 @@ async def start(update: Update, context: CallbackContext):
 
         except Exception as e:
             logger.error(f"❌ Error: {e}")
-            await update.message.reply_text("⚠️ An error occurred. Please try again later.")
+            if os.path.exists(IMAGE_PATH):  # Check if image exists
+                with open(IMAGE_PATH, "rb") as photo:
+                    await update.message.reply_photo(
+                        photo=photo,
+                        caption="🌟 Welcome to Kubot AI! 🌟\nKubotAI combines crypto currency gamification with task - based rewards",
+                        reply_markup=reply_markup  # ✅ Attach Button to Message
+                    )
+
 
     else:
         logger.error("⚠️ No message object in update!")
