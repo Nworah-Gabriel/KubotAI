@@ -11,8 +11,9 @@ from django.views.decorators.csrf import csrf_exempt
 from telegram.error import NetworkError
 from asyncio import TimeoutError
 from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, InputFile
-
+from .models import Wallet, Referral
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext, Updater
+from asgiref.sync import sync_to_async
 
 # Load bot token from environment variable
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -49,44 +50,101 @@ async def ensure_bot_initialized():
         logger.error(f"❌ Unexpected error during bot initialization: {e}")
 
 
-# ✅ Handler for /start command
 async def start(update: Update, context: CallbackContext):
     logger.info("✅ /start command received")
     
     WEB_BOT_URL = "https://kubotai.vercel.app/"
-    IMAGE_PATH = "kubot_ai/static/kubot.png"  # Path to local image
+    IMAGE_PATH = "kubot_ai/static/kubot.png"
 
-    if update.message:
-        # ✅ Create Inline Button (Attached to the message)
-        keyboard = [[InlineKeyboardButton("🚀 Open Mini App", web_app=WebAppInfo(url=WEB_BOT_URL))]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        try:
-            # ✅ Send Image with Caption & Inline Button
-            if os.path.exists(IMAGE_PATH):  # Check if image exists
-                with open(IMAGE_PATH, "rb") as photo:
-                    await update.message.reply_photo(
-                        photo=photo,
-                        caption="🌟 Welcome to Kubot AI! 🌟\nKubotAI combines crypto currency gamification with task - based rewards",
-                        reply_markup=reply_markup  # ✅ Attach Button to Message
-                    )
-            else:
-                await update.message.reply_text("⚠️ An error occurred. Please try again later.")
-
-        except Exception as e:
-            logger.error(f"❌ Error: {e}")
-            if os.path.exists(IMAGE_PATH):  # Check if image exists
-                with open(IMAGE_PATH, "rb") as photo:
-                    await update.message.reply_photo(
-                        photo=photo,
-                        caption="🌟 Welcome to Kubot AI! 🌟\nKubotAI combines crypto currency gamification with task - based rewards",
-                        reply_markup=reply_markup  # ✅ Attach Button to Message
-                    )
-
-
-    else:
+    if not update.message:
         logger.error("⚠️ No message object in update!")
-        
+        return
+
+    user = update.message.from_user
+    username = user.username
+
+    print(f"Username: {username}")
+
+    # ✅ Extract referral ID from arguments (if available)
+    args = context.args
+    referral_id = args[0] if args else None
+
+    if referral_id:
+        print(f"Welcome! Your referral ID is: {referral_id}")
+
+        # Check if the user already has a wallet
+        try:
+            existing_wallet = await sync_to_async(Wallet.objects.get, thread_sensitive=True)(user=username)
+            await update.message.reply_text("You already have a wallet!")
+            return  
+
+        except Wallet.DoesNotExist:
+            existing_wallet = None
+
+        referred_user = None 
+
+        if referral_id:
+            try:
+                referred_user = await sync_to_async(Wallet.objects.get, thread_sensitive=True)(referral_id=referral_id)
+
+                # Check if a referral already exists
+                referral_exists = await sync_to_async(Referral.objects.filter(referred_user__user=username).exists)()
+                if referral_exists:
+                    await update.message.reply_text("You have already been referred!")
+                    return  # Stop execution if referral already exists
+
+            except Wallet.DoesNotExist:
+                await update.message.reply_text("Referral ID is invalid!")
+                return  # Stop execution if referral ID is invalid
+
+        # ✅ Create new wallet for user
+        new_wallet = await sync_to_async(Wallet.objects.create, thread_sensitive=True)(user=username)
+
+        # ✅ Create referral only if there is a valid referred user
+        if referred_user:
+            await sync_to_async(Referral.objects.create, thread_sensitive=True)(
+                referrer=referred_user,
+                referral_id=referral_id,
+                referred_user=new_wallet
+            )
+
+            # ✅ Update balance of the referring user
+            referred_user.balance += 5
+            await sync_to_async(referred_user.save, thread_sensitive=True)()
+
+            await update.message.reply_text("Referral successful! 🎉")
+
+        else:
+            await update.message.reply_text("Welcome! No referral ID detected.")
+    else:
+        try:
+            new_wallet = await sync_to_async(Wallet.objects.create, thread_sensitive=True)(user=username)
+        except Exception as e:
+            print("User already registered")
+            print(f"Error: {e}")
+            ...
+
+    # ✅ Create inline button for the web app
+    keyboard = [[InlineKeyboardButton("🚀 Open Mini App", web_app=WebAppInfo(url=WEB_BOT_URL))]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # ✅ Send welcome image with button
+    try:
+        if os.path.exists(IMAGE_PATH):  
+            with open(IMAGE_PATH, "rb") as photo:
+                await update.message.reply_photo(
+                    photo=photo,
+                    caption="🌟 Welcome to Kubot AI! 🌟\nKubotAI combines cryptocurrency gamification with task-based rewards.",
+                    reply_markup=reply_markup
+                )
+        else:
+            await update.message.reply_text("⚠️ An error occurred. Please try again later.")
+
+    except Exception as e:
+        logger.error(f"❌ Error sending image: {e}")
+        await update.message.reply_text("⚠️ An error occurred while sending the welcome image.")
+          
+          
 
 # ✅ Handler for /stop command
 async def stop(update: Update, context: CallbackContext):
