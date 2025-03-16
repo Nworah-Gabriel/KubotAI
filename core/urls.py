@@ -16,11 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-# from kubot_ai.views import index_view, TelegramWebhookView
+from kubot_ai.views import index_view, TelegramWebhookView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # path('', index_view),
+    path('', index_view),
     path('api', include('kubot_ai.urls')),
-    # path("telegram-webhook/", TelegramWebhookView.as_view(), name="telegram-webhook"),
+    path("telegram-webhook/", TelegramWebhookView.as_view(), name="telegram-webhook"),
 ]
