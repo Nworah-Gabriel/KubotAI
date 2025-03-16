@@ -61,6 +61,7 @@ async def start(update: Update, context: CallbackContext):
         return
 
     user = update.message.from_user
+    user_id = update.message.from_user.id
     username = user.username
 
     print(f"Username: {username}")
@@ -98,7 +99,7 @@ async def start(update: Update, context: CallbackContext):
                 return  # Stop execution if referral ID is invalid
 
         # ✅ Create new wallet for user
-        new_wallet = await sync_to_async(Wallet.objects.create, thread_sensitive=True)(user=username)
+        new_wallet = await sync_to_async(Wallet.objects.create, thread_sensitive=True)(user=username,id=user_id)
 
         # ✅ Create referral only if there is a valid referred user
         if referred_user:
@@ -118,7 +119,7 @@ async def start(update: Update, context: CallbackContext):
             await update.message.reply_text("Welcome! No referral ID detected.")
     else:
         try:
-            new_wallet = await sync_to_async(Wallet.objects.create, thread_sensitive=True)(user=username)
+            new_wallet = await sync_to_async(Wallet.objects.create, thread_sensitive=True)(user=username, id=user_id)
         except Exception as e:
             print("User already registered")
             print(f"Error: {e}")
