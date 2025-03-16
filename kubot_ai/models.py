@@ -57,7 +57,7 @@ class Wallet(models.Model):
         return f"{random_part[:3]}{unique_part[:3]}"
 
 
-    
+    id = models.BigIntegerField(primary_key=True)
     user = models.CharField(max_length=255, unique=True)
     eth_address = models.CharField(max_length=255, unique=True)
     balance = models.FloatField(default=0.0)
