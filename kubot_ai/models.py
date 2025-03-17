@@ -9,6 +9,7 @@ class Task(models.Model):
 
     title = models.CharField(max_length=255)
     description = models.TextField()
+    url = models.URLField(null=True, blank=True)
     task_type = models.CharField(max_length=50)
     reward_amount = models.IntegerField(default=0)  # Reward in native tokens
     partner_project = models.CharField(max_length=255, blank=True, null=True)  # Optional
