@@ -56,6 +56,62 @@ class GetCompleteTaskView(APIView):
                         "data": None
                     })
     
+# class CompleteTaskView(APIView):
+#     """
+#     API endpoint for users to complete tasks.
+
+#     POST: Complete a task with `user_id` and `task_id` in the URL.
+
+#     Validations:
+#     - Ensures task exists.
+#     - Prevents duplicate task completion.
+#     - Grants reward upon completion.
+
+#     Permissions:
+#     - Allows any user.
+#     """
+    
+#     serializer_class = UserTaskSerializer
+#     permission_classes = [AllowAny]
+    
+   
+
+#     def post(self, request, *args, kwargs):
+#         """Handles task completion based on user_id and task_id in the URL."""
+        
+#         user_id = self.kwargs.get("user_id")
+#         task_id = self.kwargs.get("task_id")  
+
+#         try:
+#             task = Task.objects.get(id=task_id)
+#         except Task.DoesNotExist:
+#             return Response({"error": "Task not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#         # Prevent duplicate completion
+#         if UserTask.objects.filter(user_id=user_id, task=task).exists():
+#             return Response({"error": "User has already completed this task."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         # Save task completion
+#         try:
+#             user_task = UserTask.objects.create(user_id=user_id, task=task, reward_claimed=True)
+#             user_task.save()
+#             # Add reward
+#             reward = Reward.objects.create(user_id=user_id, task=task, amount=task.reward_amount)
+#             print(reward)
+#             reward.save()
+#             return Response({
+#             "message": f"Task '{task.title}' completed! You earned {task.reward_amount} tokens.",
+#             "task": UserTaskSerializer(user_task).data,
+#             "reward": reward.amount
+#         }, status=status.HTTP_201_CREATED)
+#         except Error as e:
+#             return Response({
+#             "message": f"Error: {e}",
+#             "task": UserTaskSerializer(user_task).data,
+#             "reward": None
+#         })
+
+
 class CompleteTaskView(APIView):
     """
     API endpoint for users to complete tasks.
@@ -70,46 +126,38 @@ class CompleteTaskView(APIView):
     Permissions:
     - Allows any user.
     """
-    
     serializer_class = UserTaskSerializer
     permission_classes = [AllowAny]
-    
-   
 
-    def post(self, request, *args, kwargs):
+    def post(self, request, *args, **kwargs):  # Fix applied
         """Handles task completion based on user_id and task_id in the URL."""
         
-        user_id = self.kwargs.get("user_id")
-        task_id = self.kwargs.get("task_id")  
+        user_id = kwargs.get("user_id")  # Retrieve user_id from kwargs
+        task_id = kwargs.get("task_id")  # Retrieve task_id from kwargs
 
         try:
             task = Task.objects.get(id=task_id)
         except Task.DoesNotExist:
             return Response({"error": "Task not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Prevent duplicate completion
         if UserTask.objects.filter(user_id=user_id, task=task).exists():
             return Response({"error": "User has already completed this task."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Save task completion
         try:
             user_task = UserTask.objects.create(user_id=user_id, task=task, reward_claimed=True)
-            user_task.save()
-            # Add reward
             reward = Reward.objects.create(user_id=user_id, task=task, amount=task.reward_amount)
-            print(reward)
-            reward.save()
+
             return Response({
-            "message": f"Task '{task.title}' completed! You earned {task.reward_amount} tokens.",
-            "task": UserTaskSerializer(user_task).data,
-            "reward": reward.amount
-        }, status=status.HTTP_201_CREATED)
-        except Error as e:
+                "message": f"Task '{task.title}' completed! You earned {task.reward_amount} tokens.",
+                "task": UserTaskSerializer(user_task).data,
+                "reward": reward.amount
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:  # Use `Exception` instead of `Error`
             return Response({
-            "message": f"Error: {e}",
-            "task": UserTaskSerializer(user_task).data,
-            "reward": None
-        })
+                "message": f"Error: {str(e)}",
+                "task": None,
+                "reward": None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         
         
