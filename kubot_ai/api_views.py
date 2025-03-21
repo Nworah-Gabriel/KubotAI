@@ -129,7 +129,7 @@ class CompleteTaskView(APIView):
     serializer_class = UserTaskSerializer
     permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):  # Fix applied
+    def post(self, request, *args, **kwargs):
         """Handles task completion based on user_id and task_id in the URL."""
         
         user_id = kwargs.get("user_id")  # Retrieve user_id from kwargs
@@ -152,7 +152,7 @@ class CompleteTaskView(APIView):
                 "task": UserTaskSerializer(user_task).data,
                 "reward": reward.amount
             }, status=status.HTTP_201_CREATED)
-        except Exception as e:  # Use `Exception` instead of `Error`
+        except Exception as e:
             return Response({
                 "message": f"Error: {str(e)}",
                 "task": None,
