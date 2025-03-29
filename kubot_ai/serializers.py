@@ -8,12 +8,16 @@ class TaskSerializer(serializers.ModelSerializer):
 
 
 class UserTaskSerializer(serializers.ModelSerializer):
+    task = TaskSerializer(read_only=True)
+    
     class Meta:
         model = UserTask
         fields = '__all__'
 
 
 class RewardSerializer(serializers.ModelSerializer):
+    task = TaskSerializer(read_only=True)
+    
     class Meta:
         model = Reward
         fields = '__all__'
